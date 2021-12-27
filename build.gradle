@@ -1,0 +1,37 @@
+plugins {
+    id 'org.springframework.boot' version '2.6.2'
+    id 'org.jetbrains.kotlin.jvm' version '1.6.10'
+    id 'java'
+}
+
+group 'youtubecheckin'
+version '1.0'
+
+repositories {
+    mavenCentral()
+}
+
+bootJar {
+    archiveName = 'YouTubeCheckin.jar'
+    doLast {
+        copy {
+            from 'build/libs/YouTubeCheckin.jar'
+            into '.'
+        }
+    }
+}
+
+dependencies {
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure:2.6.1'
+    implementation 'org.springframework.boot:spring-boot-starter-web:2.6.1'
+    implementation 'org.json:json:20211205'
+    implementation 'com.google.protobuf:protobuf-java:3.19.1'
+    implementation 'org.apache.httpcomponents:httpclient:4.5.13'
+    implementation 'org.apache.httpcomponents:httpcore:4.4.15'
+    implementation 'org.bouncycastle:bctls-jdk15on:1.57'
+}
+
+test {
+    useJUnitPlatform()
+}
