@@ -18,7 +18,7 @@ import youtubecheckin.core.com.akdeniz.googleplaycrawler.GooglePlayAPI
 
 @RestController
 class YouTube {
-    @PostMapping("/youtube", produces = [MediaType.APPLICATION_JSON_VALUE])
+    @PostMapping("/", produces = [MediaType.APPLICATION_JSON_VALUE])
     private fun processRequest(@RequestBody res: String): ResponseEntity<String> {
         val response = JSONObject()
 
