@@ -10,6 +10,7 @@ import org.json.JSONObject
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
@@ -18,6 +19,12 @@ import youtubecheckin.core.com.akdeniz.googleplaycrawler.GooglePlayAPI
 
 @RestController
 class YouTube {
+
+    @GetMapping("/ping", produces = [MediaType.APPLICATION_JSON_VALUE])
+    private fun pongRequest(): ResponseEntity<String> {
+        return ResponseEntity(JSONObject().put("ok", "200").toString(), HttpStatus.OK)
+    }
+
     @PostMapping("/", produces = [MediaType.APPLICATION_JSON_VALUE])
     private fun processRequest(@RequestBody res: String): ResponseEntity<String> {
         val response = JSONObject()
