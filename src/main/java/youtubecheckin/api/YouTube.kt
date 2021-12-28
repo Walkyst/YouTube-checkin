@@ -41,6 +41,7 @@ class YouTube {
             response.put("androidId", api.androidID)
             response.put("email", api.email)
             response.put("aas_et", api.aas_et)
+            response.put("services", api.services)
         } catch (e: Exception) {
             response.put("exception", e.message)
             return ResponseEntity(response.toString(), HttpStatus.BAD_REQUEST)

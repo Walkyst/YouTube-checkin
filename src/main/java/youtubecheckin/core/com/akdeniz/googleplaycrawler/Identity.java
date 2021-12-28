@@ -87,6 +87,10 @@ class Identity {
 		return aas_et;
 	}
 
+	public String getServices() {
+		return services;
+	}
+
 	/**
 	 * List the services, the user is clear for.
 	 * 

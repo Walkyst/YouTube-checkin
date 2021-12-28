@@ -89,6 +89,7 @@ public class GooglePlayAPI {
 		}
 	}
 
+	private String services;
 	private String aas_et;
 	private String token;
 	private String androidID;
@@ -296,6 +297,7 @@ public class GooglePlayAPI {
 		 */
 		Identity ident = Identity.signIn(getClient(), getEmail(), password);
 		aas_et = ident.getAas_et();
+		services = ident.getServices();
 		setToken(ident.getAuthToken());
 	}
 
@@ -723,6 +725,10 @@ public class GooglePlayAPI {
 						"Content-Type",
 						(contentType != null) ? contentType
 								: "application/x-www-form-urlencoded; charset=UTF-8" } };
+	}
+
+	public String getServices() {
+		return services;
 	}
 
 	public String getAas_et() {
