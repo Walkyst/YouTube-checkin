@@ -62,8 +62,7 @@ public class GooglePlayAPI {
 	private static final String BULKDETAILS_URL = FDFE_URL + "bulkDetails";
 	private static final String PURCHASE_URL = FDFE_URL + "purchase";
 	private static final String REVIEWS_URL = FDFE_URL + "rev";
-	private static final String UPLOADDEVICECONFIG_URL = FDFE_URL
-			+ "uploadDeviceConfig";
+	private static final String UPLOADDEVICECONFIG_URL = FDFE_URL + "uploadDeviceConfig";
 	private static final String RECOMMENDATIONS_URL = FDFE_URL + "rec";
 	private static final String DELIVERY_URL = FDFE_URL + "delivery";
 
@@ -89,6 +88,7 @@ public class GooglePlayAPI {
 		}
 	}
 
+	private String continueUrl;
 	private String services;
 	private String aas_et;
 	private String token;
@@ -298,6 +298,7 @@ public class GooglePlayAPI {
 		Identity ident = Identity.signIn(getClient(), getEmail(), password);
 		aas_et = ident.getAas_et();
 		services = ident.getServices();
+		continueUrl = ident.getContinueUrl();
 		setToken(ident.getAuthToken());
 	}
 
@@ -725,6 +726,10 @@ public class GooglePlayAPI {
 						"Content-Type",
 						(contentType != null) ? contentType
 								: "application/x-www-form-urlencoded; charset=UTF-8" } };
+	}
+
+	public String getContinueUrl() {
+		return continueUrl;
 	}
 
 	public String getServices() {

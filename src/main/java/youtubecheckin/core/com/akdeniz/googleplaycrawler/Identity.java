@@ -1,38 +1,34 @@
 package youtubecheckin.core.com.akdeniz.googleplaycrawler;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.math.BigInteger;
-import java.security.InvalidKeyException;
-import java.security.Key;
-import java.security.KeyFactory;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.RSAPublicKeySpec;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-
+import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.HttpResponseException;
+import org.apache.http.client.config.CookieSpecs;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicNameValuePair;
-
+import org.apache.http.util.EntityUtils;
 import youtubecheckin.core.com.akdeniz.googleplaycrawler.misc.Base64;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.security.*;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.RSAPublicKeySpec;
+import java.util.*;
 
 /**
  * ClientLogin implementation.
@@ -42,6 +38,7 @@ import youtubecheckin.core.com.akdeniz.googleplaycrawler.misc.Base64;
  */
 class Identity {
 
+	private static final String CONTINUE_URL = "https://accounts.google.com/signin/continue";
 	private static final String LOGIN_URL = "https://android.clients.google.com/auth";
 	private static final String PUBKEY = "AAAAgMom/1a/v0lblO2Ubrt60J2gcuXSljGFQXgcyZWveWLEwo6prwgi3iJIZdodyhKZQrNWp5nKJ3srRXcUW+F1BD3baEVGcmEgqaLZUNBjm057pKRI16kB0YppeGx5qIQ5QjKzsR8ETQbKLNWgRY0QRNVz34kMJR3P/LgHax/6rmf5AAAAAwEAAQ==";
 	private static final String MARKET = "androidmarket";
@@ -52,6 +49,7 @@ class Identity {
 	private String services;
 	private String authToken;
 	private String aas_et;
+	private String continueUrl;
 
 	private Identity() {
 	}
@@ -91,6 +89,10 @@ class Identity {
 		return services;
 	}
 
+	public String getContinueUrl() {
+		return continueUrl;
+	}
+
 	/**
 	 * List the services, the user is clear for.
 	 * 
@@ -119,22 +121,16 @@ class Identity {
 	/**
 	 * Sing into Play
 	 * 
-	 * @param req
-	 *          parameter object with username, password and locale.
+	 * @param client httpclient
+	 * @param uid email
+	 * @param pwd password
 	 * @return new instance
-	 * @throws BadAuthenticationException
-	 * @throws ClientProtocolException
-	 * @throws HttpResponseException
+	 * @throws URISyntaxException
 	 * @throws IOException
 	 */
-	public static Identity signIn(HttpClient client, String uid, String pwd)
-			throws ClientProtocolException,
-			HttpResponseException, IOException {
-
-		
-		
+	public static Identity signIn(HttpClient client, String uid, String pwd) throws IOException, URISyntaxException, InterruptedException {
 		Locale loc = Locale.getDefault();
-		String epwd = null;
+		String epwd;
 		try {
 			epwd = encryptString(uid + "\u0000" + pwd);
 		}
@@ -163,6 +159,7 @@ class Identity {
 		Identity ret = new Identity();
 		System.out.println("signIn request -> " + map);
 		String tok = map.get("Token");
+		ret.continueUrl = map.get("continueUrl");
 		ret.firstName = map.get("firstName");
 		ret.lastName = map.get("lastName");
 		ret.email = map.get("Email");
@@ -188,59 +185,50 @@ class Identity {
 		return ret;
 	}
 
-	private static Map<String, String> doPost(HttpClient client,
-			List<NameValuePair> params) throws ClientProtocolException,
-			 IOException {
+	private static Map<String, String> doPost(HttpClient client, List<NameValuePair> params) throws IOException, URISyntaxException, InterruptedException {
 		HttpPost httppost = new HttpPost(LOGIN_URL);
 		httppost.setEntity(new UrlEncodedFormEntity(params, "UTF-8"));
 		HttpResponse response = client.execute(httppost);
-		Map<String, String> map = parseContent(response.getEntity().getContent());
+		Map<String, String> map = convertToMapLayout(EntityUtils.toString(response.getEntity()));
 		if (response.getStatusLine().getStatusCode() == 200) {
 			return map;
 		}
 
 		if (map.containsKey("Error")) {
-			throw new ClientProtocolException(map.get("Error"));
+			if (map.get("Error").contains("NeedsBrowser") && map.get("Url").length() > 0) {
+				List<NameValuePair> pairs = new URIBuilder(map.get("Url")).getQueryParams();
+				for (NameValuePair pair : pairs) {
+					if (pair.getName().contains("plt")) {
+						URI uri = new URIBuilder(CONTINUE_URL)
+										.addParameter("nojavascript", "1")
+										.addParameter("bgresponse", "js_disabled")
+										.addParameter("continue", "https://accounts.google.com/o/android/auth?hl=en_en&xoauth_display_name=Android+Login+Service&source=Android+Login")
+										.addParameter("sarp", "1")
+										.addParameter("scc", "1")
+										.addParameter("plt", pair.getValue())
+										.build();
+						map.put("continueUrl", uri.toString());
+						return map;
+					}
+				}
+			} else {
+				throw new ClientProtocolException(map.get("Error"));
+			}
 		}
-		throw new HttpResponseException(response.getStatusLine().getStatusCode(),
-				response.getStatusLine().getReasonPhrase());
+
+		throw new HttpResponseException(response.getStatusLine().getStatusCode(), response.getStatusLine().getReasonPhrase());
 	}
 
-	private static Map<String, String> parseContent(InputStream in)
-			throws IOException {
-		HashMap<String, String> ret = new HashMap<String, String>();
-		int k = 0;
-		boolean value = false; // Simple state machine.
-		StringBuilder key = new StringBuilder();
-		StringBuilder val = new StringBuilder();
-		while (true) {
-			k = in.read();
-			if (k == -1) { // EOF
-				ret.put(key.toString(), val.toString());
-				break;
-			}
-			if (k == '=') { // Skip symbol; toggle state
-				value = true;
-				continue;
-			}
-			if (k == '\n') { // End of value -> commit key/value pair
-				value = false;
-				ret.put(key.toString(), val.toString());
-				key.setLength(0);
-				val.setLength(0);
-				continue;
-			}
-			if (k == '\r') { // Skip line end symbol.
-				continue;
-			}
-			if (value) { // Depending on state either file into key or value
-				val.append((char) k);
-			}
-			else {
-				key.append((char) k);
+	public static Map<String, String> convertToMapLayout(String response) {
+		Map<String, String> map = new HashMap<>();
+		StringTokenizer st = new StringTokenizer(response, "\n\r");
+		while (st.hasMoreTokens()) {
+			String[] keyValue = st.nextToken().split("=", 2);
+			if (keyValue.length >= 2) {
+				map.put(keyValue[0], keyValue[1]);
 			}
 		}
-		return ret;
+		return map;
 	}
 
 	private static String encryptString(String str)

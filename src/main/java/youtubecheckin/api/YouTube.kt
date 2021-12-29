@@ -5,6 +5,7 @@ import org.apache.http.client.config.RequestConfig
 import org.apache.http.config.RegistryBuilder
 import org.apache.http.conn.socket.ConnectionSocketFactory
 import org.apache.http.impl.client.HttpClientBuilder
+import org.apache.http.impl.client.LaxRedirectStrategy
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import org.json.JSONObject
 import org.springframework.http.HttpStatus
@@ -25,8 +26,8 @@ class YouTube {
         return ResponseEntity(JSONObject().put("ok", "200").toString(), HttpStatus.OK)
     }
 
-    @PostMapping("/", produces = [MediaType.APPLICATION_JSON_VALUE])
-    private fun processRequest(@RequestBody res: String): ResponseEntity<String> {
+    @PostMapping("/checkin", produces = [MediaType.APPLICATION_JSON_VALUE])
+    private fun checkin(@RequestBody res: String): ResponseEntity<String> {
         val response = JSONObject()
 
         try {
@@ -35,13 +36,40 @@ class YouTube {
 
             api.client = createLoginClient()
             api.login()
-            api.checkin()
-            api.uploadDeviceConfig()
+            if (api.continueUrl.isNullOrEmpty()) {
+                api.checkin()
+                api.uploadDeviceConfig()
+            }
 
             response.put("androidId", api.androidID)
             response.put("email", api.email)
             response.put("aas_et", api.aas_et)
             response.put("services", api.services)
+            response.put("continueUrl", api.continueUrl)
+        } catch (e: Exception) {
+            response.put("exception", e.message)
+            return ResponseEntity(response.toString(), HttpStatus.BAD_REQUEST)
+        }
+
+        return ResponseEntity(response.toString(), HttpStatus.OK)
+    }
+
+    @PostMapping("/login", produces = [MediaType.APPLICATION_JSON_VALUE])
+    private fun login(@RequestBody res: String): ResponseEntity<String> {
+        val response = JSONObject()
+
+        try {
+            val request = JSONObject(res)
+            val api = GooglePlayAPI(request.get("email").toString(), request.get("password").toString())
+
+            api.client = createLoginClient()
+            api.login()
+
+            response.put("androidId", api.androidID)
+            response.put("email", api.email)
+            response.put("aas_et", api.aas_et)
+            response.put("services", api.services)
+            response.put("continueUrl", api.continueUrl)
         } catch (e: Exception) {
             response.put("exception", e.message)
             return ResponseEntity(response.toString(), HttpStatus.BAD_REQUEST)
