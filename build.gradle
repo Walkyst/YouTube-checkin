@@ -23,8 +23,10 @@ bootJar {
 
 dependencies {
     implementation 'org.jetbrains.kotlin:kotlin-stdlib'
+    implementation 'org.jetbrains.kotlin:kotlin-reflect'
     implementation 'org.springframework.boot:spring-boot-autoconfigure:2.6.1'
     implementation 'org.springframework.boot:spring-boot-starter-web:2.6.1'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb:2.6.1'
     implementation 'org.json:json:20211205'
     implementation 'com.google.protobuf:protobuf-java:3.19.1'
     implementation 'org.apache.httpcomponents:httpclient:4.5.13'
