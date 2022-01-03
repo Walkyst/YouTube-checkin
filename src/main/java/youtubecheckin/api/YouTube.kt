@@ -36,16 +36,21 @@ class YouTube(private val accountRepository: AccountRepository) {
             val api = GooglePlayAPI(request.get("email").toString(), request.get("password").toString())
 
             api.client = createLoginClient()
-            api.login()
-            if (api.continueUrl.isNullOrEmpty()) {
-                api.checkin()
-                api.uploadDeviceConfig()
-                accountRepository.save(Account(
-                    request.get("email").toString() + request.get("password").toString(),
-                    api.aas_et,
-                    api.services,
-                    System.currentTimeMillis()
-                ))
+            api.login().whenComplete { _, _ ->
+                if (api.continueUrl.isNullOrEmpty()) {
+                    api.checkin()
+                    api.uploadDeviceConfig()
+                    api.youtubeLogin().whenComplete { _, _ ->
+                        api.login().whenComplete { services, _ ->
+                            accountRepository.save(Account(
+                                request.get("email").toString() + request.get("password").toString(),
+                                api.aas_et,
+                                services,
+                                System.currentTimeMillis()
+                            ))
+                        }
+                    }
+                }
             }
 
             response.put("androidId", api.androidID)
@@ -78,22 +83,22 @@ class YouTube(private val accountRepository: AccountRepository) {
             } else {
                 val api = GooglePlayAPI(request.get("email").toString(), request.get("password").toString())
                 api.client = createLoginClient()
-                api.login()
+                api.login().whenComplete { services, _ ->
+                    if (api.continueUrl.isNullOrEmpty() && services.contains("android") && services.contains("youtube")) {
+                        accountRepository.save(Account(
+                            request.get("email").toString() + request.get("password").toString(),
+                            api.aas_et,
+                            services,
+                            System.currentTimeMillis())
+                        )
+                    }
 
-                if (api.continueUrl.isNullOrEmpty()) {
-                    accountRepository.save(Account(
-                        request.get("email").toString() + request.get("password").toString(),
-                        api.aas_et,
-                        api.services,
-                        System.currentTimeMillis())
-                    )
+                    response.put("androidId", api.androidID)
+                    response.put("email", api.email)
+                    response.put("aas_et", api.aas_et)
+                    response.put("services", api.services)
+                    response.put("continueUrl", api.continueUrl)
                 }
-
-                response.put("androidId", api.androidID)
-                response.put("email", api.email)
-                response.put("aas_et", api.aas_et)
-                response.put("services", api.services)
-                response.put("continueUrl", api.continueUrl)
             }
         } catch (e: Exception) {
             response.put("exception", e.message)

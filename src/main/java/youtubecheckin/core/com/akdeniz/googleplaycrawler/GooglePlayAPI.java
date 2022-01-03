@@ -1,8 +1,5 @@
 package youtubecheckin.core.com.akdeniz.googleplaycrawler;
 
-import youtubecheckin.core.com.akdeniz.googleplaycrawler.GooglePlay.*;
-import youtubecheckin.core.com.akdeniz.googleplaycrawler.GooglePlay.BulkDetailsRequest.Builder;
-import youtubecheckin.core.com.akdeniz.googleplaycrawler.misc.Base64;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -12,26 +9,38 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.http.impl.conn.SchemeRegistryFactory;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
+import youtubecheckin.core.com.akdeniz.googleplaycrawler.GooglePlay.*;
+import youtubecheckin.core.com.akdeniz.googleplaycrawler.GooglePlay.BulkDetailsRequest.Builder;
+import youtubecheckin.core.com.akdeniz.googleplaycrawler.misc.Base64;
 
 import javax.crypto.Cipher;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
+import java.net.URI;
 import java.security.Key;
 import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static youtubecheckin.core.com.akdeniz.googleplaycrawler.Identity.convertToMapLayout;
 
 /**
  * This class provides
@@ -51,6 +60,8 @@ import java.util.Map;
  */
 public class GooglePlayAPI {
 
+	private static final String YOUTUBE_AUTH_URL = "https://youtubei.googleapis.com/youtubei/v1/account/accounts_list?key=AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w";
+	private static final String YOUTUBE_AUTH_PAYLOAD = "{\"context\":{\"client\":{\"clientName\":\"ANDROID\",\"clientVersion\":\"16.24\",\"acceptRegion\":\"US\",\"experimentsToken\":\"GgIQAA%3D%3D\",\"deviceMake\":\"Samsung\",\"deviceModel\":\"SM-G955F\",\"platform\":\"MOBILE\"},\"request\":{\"consistencyTokenJars\":[]},\"user\":{\"enableSafetyMode\":false}}}";
 	private static final String CHECKIN_URL = "https://android.clients.google.com/checkin";
 	private static final String URL_LOGIN = "https://android.clients.google.com/auth";
 	private static final String C2DM_REGISTER_URL = "https://android.clients.google.com/c2dm/register2";
@@ -279,27 +290,36 @@ public class GooglePlayAPI {
 	 * authentication token. This token can be used to login instead of using
 	 * email and password every time.
 	 */
-	public void login() throws Exception {
-		/*
-		 * HttpEntity responseEntity = executePost(URL_LOGIN, new String[][] { {
-		 * "Email", this.getEmail() }, { "EncryptedPasswd",
-		 * encryptString(this.getEmail()+"\u0000"+this.password) }, { "service",
-		 * "androidmarket" }, { "add_account", "1"}, { "accountType",
-		 * ACCOUNT_TYPE_HOSTED_OR_GOOGLE }, { "has_permission", "1" }, { "source",
-		 * "android" }, { "androidId", this.getAndroidID() }, { "app",
-		 * "com.android.vending" }, { "device_country", "en" }, { "lang", "en" }, {
-		 * "sdk_version", "17" }, }, null);
-		 * 
-		 * Map<String, String> response = Utils.parseResponse(new
-		 * String(Utils.readAll(responseEntity .getContent()))); if
-		 * (response.containsKey("Auth")) { setToken(response.get("Auth")); } else {
-		 * throw new GooglePlayException("Authentication failed!"); }
-		 */
+	public CompletableFuture<String> login() throws Exception {
+		CompletableFuture<String> future = new CompletableFuture<>();
 		Identity ident = Identity.signIn(getClient(), getEmail(), password);
 		aas_et = ident.getAas_et();
 		services = ident.getServices();
 		continueUrl = ident.getContinueUrl();
-		setToken(ident.getAuthToken());
+		future.complete(ident.getServices());
+		return future;
+	}
+
+	public CompletableFuture<String> youtubeLogin() throws Exception {
+		String accessToken = exchangeAccessToken();
+		CompletableFuture<String> future = new CompletableFuture<>();
+		HttpEntity entity = executePost(YOUTUBE_AUTH_URL, YOUTUBE_AUTH_PAYLOAD, new String[][] {
+						{ "Authorization", "Bearer " + accessToken }
+		});
+		future.complete(EntityUtils.toString(entity));
+		return future;
+	}
+
+	private String exchangeAccessToken() throws Exception {
+		HttpEntity httpEntity = executePost(new URIBuilder(URL_LOGIN)
+						.addParameter("app", "com.google.android.youtube")
+						.addParameter("client_sig", "24bb24c05e47e0aefa68a58a766179d9b613a600")
+						.addParameter("google_play_services_version", "214516005")
+						.addParameter("service", "oauth2:https://www.googleapis.com/auth/youtube")
+						.addParameter("Token", aas_et)
+						.build()
+		);
+		return convertToMapLayout(EntityUtils.toString(httpEntity, UTF_8)).get("Auth");
 	}
 
 	/**
@@ -652,6 +672,29 @@ public class GooglePlayAPI {
 		}
 
 		httppost.setEntity(postData);
+
+		return executeHttpRequest(httppost);
+	}
+
+	private HttpEntity executePost(URI url) throws IOException {
+		HttpPost httppost = new HttpPost(url);
+
+		return executeHttpRequest(httppost);
+	}
+
+	private HttpEntity executePost(String url, String payload, String[][] headerParams) throws IOException {
+		HttpPost httppost = new HttpPost(url);
+
+		if (headerParams != null) {
+			for (String[] param : headerParams) {
+				if (param[0] != null && param[1] != null) {
+					httppost.setHeader(param[0], param[1]);
+				}
+			}
+		}
+
+		StringEntity entity = new StringEntity(payload, "UTF-8");
+		httppost.setEntity(entity);
 
 		return executeHttpRequest(httppost);
 	}

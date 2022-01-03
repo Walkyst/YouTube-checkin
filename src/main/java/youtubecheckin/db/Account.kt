@@ -1,8 +1,11 @@
 package youtubecheckin.db
 
+import org.springframework.data.annotation.Id
+
 class Account(
-    val emailPass: String,
-    val aas_et: String,
-    val services: String,
-    val timestamp: Long
+    @Id
+    var emailPass: String,
+    var aas_et: String,
+    var services: String,
+    var timestamp: Long
 )
