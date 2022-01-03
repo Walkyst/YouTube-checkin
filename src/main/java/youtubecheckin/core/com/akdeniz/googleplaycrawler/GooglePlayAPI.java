@@ -299,8 +299,8 @@ public class GooglePlayAPI {
 	}
 
 	public CompletableFuture<String> youtubeLogin() throws Exception {
-		String accessToken = exchangeAccessToken();
 		CompletableFuture<String> future = new CompletableFuture<>();
+		String accessToken = exchangeAccessToken();
 		HttpEntity entity = executePost(YOUTUBE_AUTH_URL, YOUTUBE_AUTH_PAYLOAD, new String[][] {
 						{ "Authorization", "Bearer " + accessToken }
 		});
