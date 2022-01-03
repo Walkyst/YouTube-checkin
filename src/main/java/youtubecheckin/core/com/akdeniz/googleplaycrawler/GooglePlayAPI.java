@@ -290,14 +290,12 @@ public class GooglePlayAPI {
 	 * authentication token. This token can be used to login instead of using
 	 * email and password every time.
 	 */
-	public CompletableFuture<String> login() throws Exception {
-		CompletableFuture<String> future = new CompletableFuture<>();
+	public void login() throws Exception {
 		Identity ident = Identity.signIn(getClient(), getEmail(), password);
 		aas_et = ident.getAas_et();
 		services = ident.getServices();
 		continueUrl = ident.getContinueUrl();
-		future.complete(ident.getServices());
-		return future;
+		setToken(ident.getAuthToken());
 	}
 
 	public CompletableFuture<String> youtubeLogin() throws Exception {

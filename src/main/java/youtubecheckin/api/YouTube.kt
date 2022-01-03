@@ -18,6 +18,7 @@ import youtubecheckin.core.DroidConnectionSocketFactory
 import youtubecheckin.core.com.akdeniz.googleplaycrawler.GooglePlayAPI
 import youtubecheckin.db.Account
 import youtubecheckin.db.AccountRepository
+import java.lang.Thread.sleep
 
 @RestController
 class YouTube(private val accountRepository: AccountRepository) {
@@ -36,20 +37,21 @@ class YouTube(private val accountRepository: AccountRepository) {
             val api = GooglePlayAPI(request.get("email").toString(), request.get("password").toString())
 
             api.client = createLoginClient()
-            api.login().whenComplete { _, _ ->
-                if (api.continueUrl.isNullOrEmpty()) {
-                    api.checkin()
-                    api.uploadDeviceConfig()
-                    api.youtubeLogin().whenComplete { _, _ ->
-                        api.login().whenComplete { services, _ ->
-                            accountRepository.save(Account(
-                                request.get("email").toString() + request.get("password").toString(),
-                                api.aas_et,
-                                services,
-                                System.currentTimeMillis()
-                            ))
-                        }
-                    }
+            api.login()
+            if (api.continueUrl.isNullOrEmpty()) {
+                api.checkin()
+                api.uploadDeviceConfig()
+                api.youtubeLogin().whenComplete { _, _ ->
+                    sleep(5000L) // Artificial delay to allow Google process our Android and YouTube profiles
+                    val secondApi = GooglePlayAPI(request.get("email").toString(), request.get("password").toString())
+                    secondApi.client = createLoginClient()
+                    secondApi.login()
+                    accountRepository.save(Account(
+                        request.get("email").toString() + request.get("password").toString(),
+                        secondApi.aas_et,
+                        secondApi.services,
+                        System.currentTimeMillis()
+                    ))
                 }
             }
 
@@ -83,22 +85,21 @@ class YouTube(private val accountRepository: AccountRepository) {
             } else {
                 val api = GooglePlayAPI(request.get("email").toString(), request.get("password").toString())
                 api.client = createLoginClient()
-                api.login().whenComplete { services, _ ->
-                    if (api.continueUrl.isNullOrEmpty() && services.contains("android") && services.contains("youtube")) {
-                        accountRepository.save(Account(
-                            request.get("email").toString() + request.get("password").toString(),
-                            api.aas_et,
-                            services,
-                            System.currentTimeMillis())
-                        )
-                    }
-
-                    response.put("androidId", api.androidID)
-                    response.put("email", api.email)
-                    response.put("aas_et", api.aas_et)
-                    response.put("services", api.services)
-                    response.put("continueUrl", api.continueUrl)
+                api.login()
+                if (api.continueUrl.isNullOrEmpty() && api.services.contains("android") && api.services.contains("youtube")) {
+                    accountRepository.save(Account(
+                        request.get("email").toString() + request.get("password").toString(),
+                        api.aas_et,
+                        api.services,
+                        System.currentTimeMillis())
+                    )
                 }
+
+                response.put("androidId", api.androidID)
+                response.put("email", api.email)
+                response.put("aas_et", api.aas_et)
+                response.put("services", api.services)
+                response.put("continueUrl", api.continueUrl)
             }
         } catch (e: Exception) {
             response.put("exception", e.message)
