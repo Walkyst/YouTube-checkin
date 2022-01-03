@@ -42,7 +42,6 @@ class YouTube(private val accountRepository: AccountRepository) {
                 api.checkin()
                 api.uploadDeviceConfig()
                 api.youtubeLogin().whenComplete { _, _ ->
-                    sleep(5000L) // Artificial delay to allow Google process our Android and YouTube profiles
                     val secondApi = GooglePlayAPI(request.get("email").toString(), request.get("password").toString())
                     secondApi.client = createLoginClient()
                     secondApi.login()
