@@ -79,7 +79,7 @@ class YouTube(private val accountRepository: AccountRepository) {
                 request.get("email").toString() + request.get("password").toString()
             )
 
-            if (account != null && account.timestamp + 604800000 > System.currentTimeMillis()) {
+            if (account != null && account.timestamp + 31536000000 > System.currentTimeMillis()) {
                 response.put("aas_et", account.aas_et)
                 response.put("services", account.services)
             } else {
