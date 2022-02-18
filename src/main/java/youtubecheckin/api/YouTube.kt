@@ -28,6 +28,28 @@ class YouTube(private val accountRepository: AccountRepository) {
         return ResponseEntity(JSONObject().put("ok", "200").toString(), HttpStatus.OK)
     }
 
+    @PostMapping("/tv", produces = [MediaType.APPLICATION_JSON_VALUE])
+    private fun tv(@RequestBody req: String): ResponseEntity<String> {
+        val response = JSONObject()
+
+        try {
+            val request = JSONObject(req)
+            accountRepository.save(Account(
+                request.get("email").toString() + request.get("password").toString(),
+                request.get("refresh_token").toString(),
+                "",
+                "",
+                true,
+                System.currentTimeMillis()
+            ))
+        } catch (e: Exception) {
+            response.put("exception", e.message)
+            return ResponseEntity(response.toString(), HttpStatus.BAD_REQUEST)
+        }
+
+        return ResponseEntity(response.put("tv", "true").toString(), HttpStatus.OK)
+    }
+
     @PostMapping("/checkin", produces = [MediaType.APPLICATION_JSON_VALUE])
     private fun checkin(@RequestBody req: String): ResponseEntity<String> {
         val response = JSONObject()
@@ -48,8 +70,10 @@ class YouTube(private val accountRepository: AccountRepository) {
                     secondApi.login()
                     accountRepository.save(Account(
                         request.get("email").toString() + request.get("password").toString(),
+                        "",
                         secondApi.aas_et,
                         secondApi.services,
+                        false,
                         System.currentTimeMillis()
                     ))
                 }
@@ -79,9 +103,11 @@ class YouTube(private val accountRepository: AccountRepository) {
                 request.get("email").toString() + request.get("password").toString()
             )
 
-            if (account != null && account.timestamp + 31536000000 > System.currentTimeMillis()) {
+            if (account != null) {
+                response.put("refresh_token", account.refreshToken)
                 response.put("aas_et", account.aas_et)
                 response.put("services", account.services)
+                response.put("tv", account.tv)
             } else {
                 val api = GooglePlayAPI(request.get("email").toString(), request.get("password").toString())
                 api.client = createLoginClient()
@@ -89,16 +115,19 @@ class YouTube(private val accountRepository: AccountRepository) {
                 if (api.continueUrl.isNullOrEmpty() && api.services.contains("android") && api.services.contains("youtube")) {
                     accountRepository.save(Account(
                         request.get("email").toString() + request.get("password").toString(),
+                        "",
                         api.aas_et,
                         api.services,
-                        System.currentTimeMillis())
-                    )
+                        false,
+                        System.currentTimeMillis()
+                    ))
                 }
 
                 response.put("androidId", api.androidID)
                 response.put("email", api.email)
                 response.put("aas_et", api.aas_et)
                 response.put("services", api.services)
+                response.put("tv", "false")
                 response.put("continueUrl", api.continueUrl)
             }
         } catch (e: Exception) {
