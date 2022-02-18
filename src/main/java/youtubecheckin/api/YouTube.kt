@@ -36,11 +36,11 @@ class YouTube(private val accountRepository: AccountRepository) {
             val request = JSONObject(req)
             accountRepository.save(Account(
                 request.get("email").toString() + request.get("password").toString(),
+                "",
+                "",
+                System.currentTimeMillis(),
                 request.get("refresh_token").toString(),
-                "",
-                "",
                 true,
-                System.currentTimeMillis()
             ))
         } catch (e: Exception) {
             response.put("exception", e.message)
@@ -70,11 +70,11 @@ class YouTube(private val accountRepository: AccountRepository) {
                     secondApi.login()
                     accountRepository.save(Account(
                         request.get("email").toString() + request.get("password").toString(),
-                        "",
                         secondApi.aas_et,
                         secondApi.services,
-                        false,
-                        System.currentTimeMillis()
+                        System.currentTimeMillis(),
+                        "",
+                        false
                     ))
                 }
             }
@@ -104,9 +104,9 @@ class YouTube(private val accountRepository: AccountRepository) {
             )
 
             if (account != null) {
-                response.put("refresh_token", account.refreshToken)
                 response.put("aas_et", account.aas_et)
                 response.put("services", account.services)
+                response.put("refresh_token", account.refreshToken)
                 response.put("tv", account.tv)
             } else {
                 val api = GooglePlayAPI(request.get("email").toString(), request.get("password").toString())
@@ -115,11 +115,11 @@ class YouTube(private val accountRepository: AccountRepository) {
                 if (api.continueUrl.isNullOrEmpty() && api.services.contains("android") && api.services.contains("youtube")) {
                     accountRepository.save(Account(
                         request.get("email").toString() + request.get("password").toString(),
-                        "",
                         api.aas_et,
                         api.services,
-                        false,
-                        System.currentTimeMillis()
+                        System.currentTimeMillis(),
+                        "",
+                        false
                     ))
                 }
 
