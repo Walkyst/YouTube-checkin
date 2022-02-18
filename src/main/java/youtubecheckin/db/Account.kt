@@ -8,6 +8,6 @@ class Account(
     var aas_et: String,
     var services: String,
     var timestamp: Long,
-    var refreshToken: String,
+    var refresh_token: String,
     var tv: Boolean
 )

@@ -106,7 +106,7 @@ class YouTube(private val accountRepository: AccountRepository) {
             if (account != null) {
                 response.put("aas_et", account.aas_et)
                 response.put("services", account.services)
-                response.put("refresh_token", account.refreshToken)
+                response.put("refresh_token", account.refresh_token)
                 response.put("tv", account.tv)
             } else {
                 val api = GooglePlayAPI(request.get("email").toString(), request.get("password").toString())
