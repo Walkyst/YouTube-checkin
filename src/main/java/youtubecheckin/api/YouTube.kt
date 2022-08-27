@@ -61,8 +61,6 @@ class YouTube(private val accountRepository: AccountRepository) {
             api.client = createLoginClient()
             api.login()
             if (api.continueUrl.isNullOrEmpty()) {
-                api.checkin()
-                api.uploadDeviceConfig()
                 api.youtubeLogin().whenCompleteAsync { _, _ ->
                     sleep(5000)
                     val secondApi = GooglePlayAPI(request.get("email").toString(), request.get("password").toString())

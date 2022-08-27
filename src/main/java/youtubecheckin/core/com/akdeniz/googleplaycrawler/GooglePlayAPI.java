@@ -53,10 +53,7 @@ public class GooglePlayAPI {
 
   private static final String YOUTUBE_AUTH_URL = "https://youtubei.googleapis.com/youtubei/v1/account/accounts_list?key=AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w";
   private static final String YOUTUBE_AUTH_PAYLOAD = "{\"context\":{\"client\":{\"clientName\":\"ANDROID\",\"clientVersion\":\"16.24\",\"acceptRegion\":\"US\",\"experimentsToken\":\"GgIQAA%3D%3D\",\"deviceMake\":\"Samsung\",\"deviceModel\":\"SM-G955F\",\"platform\":\"MOBILE\"},\"request\":{\"consistencyTokenJars\":[]},\"user\":{\"enableSafetyMode\":false}}}";
-  private static final String CHECKIN_URL = "https://android.googleapis.com/checkin";
   private static final String URL_LOGIN = "https://android.googleapis.com/auth";
-  private static final String FDFE_URL = "https://android.clients.google.com/fdfe/";
-  private static final String UPLOADDEVICECONFIG_URL = FDFE_URL + "uploadDeviceConfig";
 
   private static final String ACCOUNT_TYPE_HOSTED_OR_GOOGLE = "HOSTED_OR_GOOGLE";
 
@@ -81,114 +78,6 @@ public class GooglePlayAPI {
     this.setEmail(email);
     this.password = password;
     setUseragent("Android-Finsky/13.1.32-all (versionCode=81313200,sdk=24,device=dream2lte,hardware=dream2lte,product=dream2ltexx,build=NRD90M:user)");
-  }
-
-  /**
-   * Performs authentication on "ac2dm" service and match up android id,
-   * security token and email by checking them in on this server.
-   * <p>
-   * This function sets check-inded android ID and that can be taken either by
-   * using <code>getToken()</code> or from returned
-   * {@link AndroidCheckinResponse} instance.
-   */
-  public GooglePlay.AndroidCheckinResponse checkin() throws Exception {
-
-    // this first checkin is for generating android-id
-    AndroidCheckinResponse checkinResponse = postCheckin(Utils
-        .generateAndroidCheckinRequest().toByteArray());
-    this.setAndroidID(BigInteger.valueOf(checkinResponse.getGsfId()).toString(
-        16));
-    setSecurityToken((BigInteger.valueOf(checkinResponse.getSecurityToken())
-        .toString(16)));
-
-    String c2dmAuth = loginAC2DM();
-
-    AndroidCheckinRequest.Builder checkInbuilder = AndroidCheckinRequest
-        .newBuilder(Utils.generateAndroidCheckinRequest());
-
-    AndroidCheckinRequest build = checkInbuilder
-        .setId(new BigInteger(this.getAndroidID(), 16).longValue())
-        .setSecurityToken(new BigInteger(getSecurityToken(), 16).longValue())
-        .addAccountCookie("[" + getEmail() + "]").addAccountCookie(c2dmAuth)
-        .build();
-    // this is the second checkin to match credentials with android-id
-    return postCheckin(build.toByteArray());
-  }
-
-  private static int readInt(byte[] bArr, int i) {
-    return (((((bArr[i] & 255) << 24) | 0) | ((bArr[i + 1] & 255) << 16)) | ((bArr[i + 2] & 255) << 8))
-        | (bArr[i + 3] & 255);
-  }
-
-  public static PublicKey createKeyFromString(String str, byte[] bArr) {
-    try {
-      byte[] decode = Base64.decode(str, 0);
-      int readInt = readInt(decode, 0);
-      byte[] obj = new byte[readInt];
-      System.arraycopy(decode, 4, obj, 0, readInt);
-      BigInteger bigInteger = new BigInteger(1, obj);
-      int readInt2 = readInt(decode, readInt + 4);
-      byte[] obj2 = new byte[readInt2];
-      System.arraycopy(decode, readInt + 8, obj2, 0, readInt2);
-      BigInteger bigInteger2 = new BigInteger(1, obj2);
-      decode = MessageDigest.getInstance("SHA-1").digest(decode);
-      bArr[0] = (byte) 0;
-      System.arraycopy(decode, 0, bArr, 1, 4);
-      return KeyFactory.getInstance("RSA").generatePublic(
-          new RSAPublicKeySpec(bigInteger, bigInteger2));
-    } catch (Throwable e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private static String encryptString(String str) {
-    int i = 0;
-    byte[] obj = new byte[5];
-    Key createKeyFromString = createKeyFromString(Utils.GOOGLE_PUBLIC_KEY, obj);
-    if (createKeyFromString == null) {
-      return null;
-    }
-    try {
-      Cipher instance = Cipher.getInstance("RSA/ECB/OAEPWITHSHA1ANDMGF1PADDING");
-      byte[] bytes = str.getBytes("UTF-8");
-      int length = ((bytes.length - 1) / 86) + 1;
-      byte[] obj2 = new byte[(length * 133)];
-      while (i < length) {
-        instance.init(1, createKeyFromString);
-        byte[] doFinal = instance.doFinal(bytes, i * 86,
-            i == length + -1 ? bytes.length - (i * 86) : 86);
-        System.arraycopy(obj, 0, obj2, i * 133, obj.length);
-        System.arraycopy(doFinal, 0, obj2, (i * 133) + obj.length,
-            doFinal.length);
-        i++;
-      }
-      return Base64.encodeToString(obj2, 10);
-    } catch (Throwable e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  /**
-   * Logins AC2DM server and returns authentication string.
-   */
-  public String loginAC2DM() throws IOException {
-    HttpEntity c2dmResponseEntity = executePost(URL_LOGIN,
-        new String[][]{
-            {"Email", this.getEmail()},
-            {"EncryptedPasswd", encryptString(this.getEmail() + "\u0000" + this.password)},
-            {"add_account", "1"},
-            {"service", "ac2dm"},
-            {"accountType", ACCOUNT_TYPE_HOSTED_OR_GOOGLE},
-            {"has_permission", "1"},
-            {"source", "android"},
-            {"app", "com.google.android.gsf"},
-            {"device_country", "us"},
-            {"lang", "en"},
-            {"sdk_version", "16"},
-        }, null);
-
-    Map<String, String> c2dmAuth = Utils.parseResponse(new String(Utils.readAll(c2dmResponseEntity.getContent())));
-    return c2dmAuth.get("Auth");
   }
 
   /**
@@ -226,55 +115,13 @@ public class GooglePlayAPI {
     return convertToMapLayout(EntityUtils.toString(httpEntity, UTF_8)).get("Auth");
   }
 
-  /**
-   * Posts given check-in request content and returns
-   * {@link AndroidCheckinResponse}.
-   */
-  private AndroidCheckinResponse postCheckin(byte[] request) throws IOException {
-
-    HttpEntity httpEntity = executePost(CHECKIN_URL, new ByteArrayEntity(
-        request), new String[][]{
-        {"User-Agent", "Android-Checkin/2.0 (generic JRO03E); gzip"},
-        {"Host", "android.googleapis.com"},
-        {"Content-Type", "application/x-protobuffer"}});
-    return AndroidCheckinResponse.parseFrom(httpEntity.getContent());
-  }
-
-  /**
-   * Uploads device configuration to google server so that can be seen from web
-   * as a registered device!!
-   */
-  public GooglePlay.UploadDeviceConfigResponse uploadDeviceConfig() throws Exception {
-
-    GooglePlay.UploadDeviceConfigRequest request = GooglePlay.UploadDeviceConfigRequest.newBuilder()
-        .setDeviceConfiguration(Utils.getDeviceConfigurationProto())
-        .setManufacturer("Samsung").build();
-    ResponseWrapper responseWrapper = executePOSTRequest(
-        UPLOADDEVICECONFIG_URL, request.toByteArray(), "application/x-protobuf");
-    return responseWrapper.getPayload().getUploadDeviceConfigResponse();
-  }
-
   /* =======================Helper Functions====================== */
-
-  /**
-   * Executes POST request and returns result as {@link ResponseWrapper}.
-   * Content type can be specified for given byte array.
-   */
-  private ResponseWrapper executePOSTRequest(String url, byte[] datapost,
-                                             String contentType) throws IOException {
-
-    HttpEntity httpEntity = executePost(url, new ByteArrayEntity(datapost),
-        getHeaderParameters(this.getToken(), contentType));
-    return GooglePlay.ResponseWrapper.parseFrom(httpEntity.getContent());
-
-  }
 
   /**
    * Executes POST request on given URL with POST parameters and header
    * parameters.
    */
-  private HttpEntity executePost(String url, String[][] postParams,
-                                 String[][] headerParams) throws IOException {
+  private HttpEntity executePost(String url, String[][] postParams, String[][] headerParams) throws IOException {
 
     List<NameValuePair> formparams = new ArrayList<NameValuePair>();
 
@@ -336,8 +183,7 @@ public class GooglePlayAPI {
   /**
    * Executes given GET/POST request
    */
-  private HttpEntity executeHttpRequest(HttpUriRequest request)
-      throws ClientProtocolException, IOException {
+  private HttpEntity executeHttpRequest(HttpUriRequest request) throws IOException {
 
     HttpResponse response = getClient().execute(request);
 
@@ -346,33 +192,6 @@ public class GooglePlayAPI {
     }
 
     return response.getEntity();
-  }
-
-  /**
-   * Gets header parameters for GET/POST requests. If no content type is given,
-   * default one is used!
-   */
-  private String[][] getHeaderParameters(String token, String contentType) {
-
-    return new String[][]{
-        {"Accept-Language",
-            getLocalization() != null ? getLocalization() : "en-EN"},
-        {"Authorization", "GoogleLogin auth=" + token},
-        {"X-DFE-Enabled-Experiments",
-            "cl:billing.select_add_instrument_by_default"},
-        {
-            "X-DFE-Unsupported-Experiments",
-            "nocache:billing.use_charging_poller,market_emails,buyer_currency,prod_baseline,checkin.set_asset_paid_app_field,shekel_test,content_ratings,buyer_currency_in_app,nocache:encrypted_apk,recent_changes"},
-        {"X-DFE-Device-Id", this.getAndroidID()},
-        {"X-DFE-Client-Id", "am-android-google"},
-        {"User-Agent", getUseragent()},
-        {"X-DFE-SmallestScreenWidthDp", "320"},
-        {"X-DFE-Filter-Level", "3"},
-        {"Host", "android.googleapis.com"},
-        {
-            "Content-Type",
-            (contentType != null) ? contentType
-                : "application/x-www-form-urlencoded; charset=UTF-8"}};
   }
 
   public String getContinueUrl() {
