@@ -55,8 +55,7 @@ public class GooglePlayAPI {
   private static final String YOUTUBE_AUTH_PAYLOAD = "{\"context\":{\"client\":{\"clientName\":\"ANDROID\",\"clientVersion\":\"16.24\",\"acceptRegion\":\"US\",\"experimentsToken\":\"GgIQAA%3D%3D\",\"deviceMake\":\"Samsung\",\"deviceModel\":\"SM-G955F\",\"platform\":\"MOBILE\"},\"request\":{\"consistencyTokenJars\":[]},\"user\":{\"enableSafetyMode\":false}}}";
   private static final String CHECKIN_URL = "https://android.googleapis.com/checkin";
   private static final String URL_LOGIN = "https://android.googleapis.com/auth";
-  private static final String C2DM_REGISTER_URL = "https://android.googleapis.com/c2dm/register2";
-  private static final String FDFE_URL = "https://android.googleapis.com/fdfe/";
+  private static final String FDFE_URL = "https://android.clients.google.com/fdfe/";
   private static final String UPLOADDEVICECONFIG_URL = FDFE_URL + "uploadDeviceConfig";
 
   private static final String ACCOUNT_TYPE_HOSTED_OR_GOOGLE = "HOSTED_OR_GOOGLE";
